@@ -1,0 +1,12 @@
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\bin\Debug\net8.0\Matchcota.Core.deps.json
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\bin\Debug\net8.0\Matchcota.Core.dll
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\bin\Debug\net8.0\Matchcota.Core.pdb
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\obj\Debug\net8.0\Matchcota.Core.GeneratedMSBuildEditorConfig.editorconfig
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\obj\Debug\net8.0\Matchcota.Core.AssemblyInfoInputs.cache
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\obj\Debug\net8.0\Matchcota.Core.AssemblyInfo.cs
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\obj\Debug\net8.0\Matchcota.Core.csproj.CoreCompileInputs.cache
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\obj\Debug\net8.0\Matchcota.Core.dll
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\obj\Debug\net8.0\refint\Matchcota.Core.dll
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\obj\Debug\net8.0\Matchcota.Core.pdb
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\obj\Debug\net8.0\ref\Matchcota.Core.dll
+D:\RSSYSTEM\Matchcota\matchcota-backend\Matchcota.Core\obj\Debug\net8.0\Matchcota.Core.csproj.AssemblyReference.cache

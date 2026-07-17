@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Matchcota.Api/Matchcota.Api.csproj" />
+  <Project Path="Matchcota.Core/Matchcota.Core.csproj" />
+  <Project Path="Matchcota.Infrastructure/Matchcota.Infrastructure.csproj" />
+  <Project Path="Matchcota.Services/Matchcota.Services.csproj" />
+</Solution>
