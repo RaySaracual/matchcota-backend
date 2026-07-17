@@ -3,25 +3,26 @@ using System;
 using Matchcota.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Matchcota.Infrastructure.Persistence.Migrations
+namespace Matchcota.Infrastructure.Migrations
 {
     [DbContext(typeof(MatchcotaDbContext))]
-    partial class MatchcotaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260717171137_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.8")
+                .HasAnnotation("ProductVersion", "8.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Matchcota.Core.Entities.Dog", b =>
@@ -51,9 +52,11 @@ namespace Matchcota.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<Point>("Location")
-                        .IsRequired()
-                        .HasColumnType("geography (point, 4326)");
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -64,10 +67,6 @@ namespace Matchcota.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Location");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Location"), "GIST");
 
                     b.HasIndex("OwnerId");
 

@@ -13,7 +13,7 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
 
         services.AddDbContext<MatchcotaDbContext>(options =>
-            options.UseNpgsql(connectionString, npgsql => npgsql.UseNetTopologySuite()));
+            options.UseNpgsql(connectionString));
 
         return services;
     }

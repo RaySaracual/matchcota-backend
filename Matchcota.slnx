@@ -3,4 +3,5 @@
   <Project Path="Matchcota.Core/Matchcota.Core.csproj" />
   <Project Path="Matchcota.Infrastructure/Matchcota.Infrastructure.csproj" />
   <Project Path="Matchcota.Services/Matchcota.Services.csproj" />
+  <Project Path="Matchcota.Tests/Matchcota.Tests.csproj" />
 </Solution>

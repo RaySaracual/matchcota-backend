@@ -1,10 +1,9 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-using NetTopologySuite.Geometries;
 
 #nullable disable
 
-namespace Matchcota.Infrastructure.Persistence.Migrations
+namespace Matchcota.Infrastructure.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -12,9 +11,6 @@ namespace Matchcota.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase()
-                .Annotation("Npgsql:PostgresExtension:postgis", ",,");
-
             migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
@@ -41,7 +37,8 @@ namespace Matchcota.Infrastructure.Persistence.Migrations
                     BirthDate = table.Column<DateOnly>(type: "date", nullable: true),
                     Bio = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    Location = table.Column<Point>(type: "geography (point, 4326)", nullable: false),
+                    Latitude = table.Column<double>(type: "double precision", nullable: true),
+                    Longitude = table.Column<double>(type: "double precision", nullable: true),
                     CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "timezone('utc', now())")
                 },
                 constraints: table =>
@@ -161,12 +158,6 @@ namespace Matchcota.Infrastructure.Persistence.Migrations
                 name: "IX_DogMedia_DogId",
                 table: "DogMedia",
                 column: "DogId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Dogs_Location",
-                table: "Dogs",
-                column: "Location")
-                .Annotation("Npgsql:IndexMethod", "GIST");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Dogs_OwnerId",

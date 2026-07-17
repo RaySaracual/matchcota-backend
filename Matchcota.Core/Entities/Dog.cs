@@ -1,5 +1,3 @@
-using NetTopologySuite.Geometries;
-
 namespace Matchcota.Core.Entities;
 
 public sealed class Dog
@@ -11,7 +9,8 @@ public sealed class Dog
     public DateOnly? BirthDate { get; set; }
     public string Bio { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
-    public Point Location { get; set; } = default!;
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 
     public User Owner { get; set; } = default!;

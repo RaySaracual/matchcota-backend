@@ -12,7 +12,7 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Mat
             ?? "Host=localhost;Port=5432;Database=matchcota;Username=postgres;Password=postgres";
 
         var optionsBuilder = new DbContextOptionsBuilder<MatchcotaDbContext>();
-        optionsBuilder.UseNpgsql(connectionString, npgsql => npgsql.UseNetTopologySuite());
+        optionsBuilder.UseNpgsql(connectionString);
 
         return new MatchcotaDbContext(optionsBuilder.Options);
     }

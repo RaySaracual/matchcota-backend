@@ -34,9 +34,9 @@ public sealed class MatchcotaDbContext(DbContextOptions<MatchcotaDbContext> opti
             entity.Property(x => x.Name).IsRequired().HasMaxLength(120);
             entity.Property(x => x.Breed).IsRequired().HasMaxLength(120);
             entity.Property(x => x.Bio).HasMaxLength(500);
-            entity.Property(x => x.Location).HasColumnType("geography (point, 4326)");
+            entity.Property(x => x.Latitude).HasColumnType("double precision");
+            entity.Property(x => x.Longitude).HasColumnType("double precision");
             entity.Property(x => x.CreatedAtUtc).HasDefaultValueSql("timezone('utc', now())");
-            entity.HasIndex(x => x.Location).HasMethod("GIST");
             entity.HasOne(x => x.Owner)
                 .WithMany(x => x.Dogs)
                 .HasForeignKey(x => x.OwnerId)
