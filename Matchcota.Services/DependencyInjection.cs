@@ -1,4 +1,5 @@
 using Matchcota.Services.Auth;
+using Matchcota.Services.Chat;
 using Matchcota.Services.Discovery;
 using Matchcota.Services.Dogs;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +11,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IDiscoveryService, DiscoveryService>();
         services.AddScoped<ISwipeService, SwipeService>();
         services.AddScoped<IDogsService, DogsService>();

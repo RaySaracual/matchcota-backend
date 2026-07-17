@@ -10,6 +10,24 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: matchcota
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=matchcota;Username=postgres;Password=postgres"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,8 +40,24 @@ jobs:
       - name: Restore
         run: dotnet restore Matchcota.slnx
 
+      - name: Format check
+        run: dotnet format Matchcota.slnx --verify-no-changes
+
       - name: Build
         run: dotnet build Matchcota.slnx --configuration Release --no-restore
 
       - name: Test
         run: dotnet test Matchcota.slnx --configuration Release --no-build
+
+      - name: Smoke check (healthz)
+        run: |
+          dotnet run --project Matchcota.Api/Matchcota.Api.csproj --configuration Release --no-build &
+          SERVER_PID=$!
+          sleep 8
+          curl --fail --retry 5 --retry-delay 2 http://localhost:5269/healthz || (kill $SERVER_PID; exit 1)
+          kill $SERVER_PID
+        env:
+          ASPNETCORE_URLS: "http://localhost:5269"
+          Jwt__Key: "ci-smoke-test-secret-key-32bytes!"
+          Jwt__Issuer: "matchcota-ci"
+          Jwt__Audience: "matchcota-ci"

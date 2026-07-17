@@ -68,7 +68,12 @@ public sealed class DiscoveryService(MatchcotaDbContext dbContext) : IDiscoveryS
         return pool
             .Select(c => new
             {
-                c.Id, c.Name, c.Breed, c.BirthDate, c.Bio, c.PhotoUrl,
+                c.Id,
+                c.Name,
+                c.Breed,
+                c.BirthDate,
+                c.Bio,
+                c.PhotoUrl,
                 DistanceKm = HaversineKm(srcLat, srcLon, c.Latitude!.Value, c.Longitude!.Value),
             })
             .Where(c => c.DistanceKm <= radiusKm)
