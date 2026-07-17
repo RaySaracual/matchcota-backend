@@ -22,6 +22,33 @@ namespace Matchcota.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Matchcota.Core.Entities.Block", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BlockedDogId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BlockerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("timezone('utc', now())");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockedDogId");
+
+                    b.HasIndex("BlockerUserId", "BlockedDogId")
+                        .IsUnique();
+
+                    b.ToTable("Blocks", (string)null);
+                });
+
             modelBuilder.Entity("Matchcota.Core.Entities.Dog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -131,6 +158,45 @@ namespace Matchcota.Infrastructure.Migrations
                     b.ToTable("Matches", (string)null);
                 });
 
+            modelBuilder.Entity("Matchcota.Core.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("timezone('utc', now())");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReplacedByTokenHash")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "RevokedAtUtc");
+
+                    b.ToTable("RefreshTokens", (string)null);
+                });
+
             modelBuilder.Entity("Matchcota.Core.Entities.Message", b =>
                 {
                     b.Property<Guid>("Id")
@@ -162,6 +228,31 @@ namespace Matchcota.Infrastructure.Migrations
                     b.ToTable("Messages", (string)null);
                 });
 
+            modelBuilder.Entity("Matchcota.Core.Entities.MatchReadStatus", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("LastReadAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("MatchId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("MatchReadStatuses", (string)null);
+                });
+
             modelBuilder.Entity("Matchcota.Core.Entities.Swipe", b =>
                 {
                     b.Property<Guid>("Id")
@@ -190,6 +281,41 @@ namespace Matchcota.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Swipes", (string)null);
+                });
+
+            modelBuilder.Entity("Matchcota.Core.Entities.SafetyReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("timezone('utc', now())");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ReportedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReportedDogId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportedByUserId");
+
+                    b.HasIndex("ReportedDogId");
+
+                    b.ToTable("SafetyReports", (string)null);
                 });
 
             modelBuilder.Entity("Matchcota.Core.Entities.User", b =>
@@ -286,6 +412,36 @@ namespace Matchcota.Infrastructure.Migrations
                     b.Navigation("SenderDog");
                 });
 
+            modelBuilder.Entity("Matchcota.Core.Entities.MatchReadStatus", b =>
+                {
+                    b.HasOne("Matchcota.Core.Entities.Match", "Match")
+                        .WithMany()
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Matchcota.Core.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Match");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Matchcota.Core.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("Matchcota.Core.Entities.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Matchcota.Core.Entities.Swipe", b =>
                 {
                     b.HasOne("Matchcota.Core.Entities.Dog", "SourceDog")
@@ -305,6 +461,44 @@ namespace Matchcota.Infrastructure.Migrations
                     b.Navigation("TargetDog");
                 });
 
+            modelBuilder.Entity("Matchcota.Core.Entities.Block", b =>
+                {
+                    b.HasOne("Matchcota.Core.Entities.Dog", "BlockedDog")
+                        .WithMany()
+                        .HasForeignKey("BlockedDogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Matchcota.Core.Entities.User", "BlockerUser")
+                        .WithMany()
+                        .HasForeignKey("BlockerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BlockedDog");
+
+                    b.Navigation("BlockerUser");
+                });
+
+            modelBuilder.Entity("Matchcota.Core.Entities.SafetyReport", b =>
+                {
+                    b.HasOne("Matchcota.Core.Entities.User", "ReportedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReportedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Matchcota.Core.Entities.Dog", "ReportedDog")
+                        .WithMany()
+                        .HasForeignKey("ReportedDogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReportedByUser");
+
+                    b.Navigation("ReportedDog");
+                });
+
             modelBuilder.Entity("Matchcota.Core.Entities.Dog", b =>
                 {
                     b.Navigation("Media");
@@ -318,6 +512,8 @@ namespace Matchcota.Infrastructure.Migrations
             modelBuilder.Entity("Matchcota.Core.Entities.User", b =>
                 {
                     b.Navigation("Dogs");
+
+                    b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
         }

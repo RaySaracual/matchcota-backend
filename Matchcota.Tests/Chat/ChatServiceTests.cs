@@ -79,6 +79,74 @@ public sealed class ChatServiceTests : IDisposable
         Assert.Equal("segundo", page.Items[1].Content);
     }
 
+    [Fact]
+    public async Task GetConversationsAsync_ReturnsConversation_WithUnreadCount()
+    {
+        // ownerB sends 2 messages, ownerA has not read yet
+        await _chatService.SendMessageAsync(_ownerBId, _matchId, _dogBId, "Hola!", CancellationToken.None);
+        await Task.Delay(2);
+        await _chatService.SendMessageAsync(_ownerBId, _matchId, _dogBId, "Como estas?", CancellationToken.None);
+
+        var conversations = await _chatService.GetConversationsAsync(_ownerAId, CancellationToken.None);
+
+        Assert.Single(conversations);
+        var conv = conversations[0];
+        Assert.Equal(_matchId, conv.MatchId);
+        Assert.Equal(_dogAId, conv.MyDogId);
+        Assert.Equal(_dogBId, conv.OtherDogId);
+        Assert.Equal("Luna", conv.OtherDogName);
+        Assert.Equal(2, conv.UnreadCount);
+        Assert.Equal("Como estas?", conv.LastMessageContent);
+    }
+
+    [Fact]
+    public async Task GetConversationsAsync_UnreadCount_IsZero_AfterMarkAsRead()
+    {
+        await _chatService.SendMessageAsync(_ownerBId, _matchId, _dogBId, "Hola!", CancellationToken.None);
+        await _chatService.MarkAsReadAsync(_ownerAId, _matchId, CancellationToken.None);
+
+        var conversations = await _chatService.GetConversationsAsync(_ownerAId, CancellationToken.None);
+
+        Assert.Single(conversations);
+        Assert.Equal(0, conversations[0].UnreadCount);
+    }
+
+    [Fact]
+    public async Task GetConversationsAsync_ReturnsEmpty_WhenUserHasNoDogs()
+    {
+        var conversations = await _chatService.GetConversationsAsync(_intruderId, CancellationToken.None);
+
+        Assert.Empty(conversations);
+    }
+
+    [Fact]
+    public async Task MarkAsReadAsync_Throws_WhenUserNotInMatch()
+    {
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _chatService.MarkAsReadAsync(_intruderId, _matchId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task MarkAsReadAsync_UpdatesTimestamp_OnSecondCall()
+    {
+        await _chatService.MarkAsReadAsync(_ownerAId, _matchId, CancellationToken.None);
+        var first = await _dbContext.MatchReadStatuses
+            .FirstAsync(r => r.UserId == _ownerAId && r.MatchId == _matchId);
+        var firstTime = first.LastReadAtUtc;
+
+        await Task.Delay(10);
+        await _chatService.MarkAsReadAsync(_ownerAId, _matchId, CancellationToken.None);
+
+        var updated = await _dbContext.MatchReadStatuses
+            .FirstAsync(r => r.UserId == _ownerAId && r.MatchId == _matchId);
+
+        Assert.True(updated.LastReadAtUtc > firstTime);
+        // Only one record should exist per user/match
+        var count = await _dbContext.MatchReadStatuses
+            .CountAsync(r => r.UserId == _ownerAId && r.MatchId == _matchId);
+        Assert.Equal(1, count);
+    }
+
     private void SeedData()
     {
         _dbContext.Users.AddRange(

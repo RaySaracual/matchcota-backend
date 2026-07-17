@@ -33,8 +33,15 @@ public sealed class AuthController(IAuthService authService, IJwtTokenGenerator 
             return Conflict("Email is already registered.");
         }
 
-        var token = _jwtTokenGenerator.GenerateToken(authResult);
-        return Ok(new AuthResponseDto(authResult.UserId, authResult.Email, authResult.DisplayName, token));
+        var accessToken = _jwtTokenGenerator.GenerateToken(authResult);
+        var refreshToken = await _authService.IssueRefreshTokenAsync(authResult.UserId, cancellationToken);
+
+        return Ok(new AuthResponseDto(
+            authResult.UserId,
+            authResult.Email,
+            authResult.DisplayName,
+            accessToken,
+            refreshToken));
     }
 
     [AllowAnonymous]
@@ -48,8 +55,67 @@ public sealed class AuthController(IAuthService authService, IJwtTokenGenerator 
             return Unauthorized("Invalid credentials.");
         }
 
-        var token = _jwtTokenGenerator.GenerateToken(authResult);
-        return Ok(new AuthResponseDto(authResult.UserId, authResult.Email, authResult.DisplayName, token));
+        var accessToken = _jwtTokenGenerator.GenerateToken(authResult);
+        var refreshToken = await _authService.IssueRefreshTokenAsync(authResult.UserId, cancellationToken);
+
+        return Ok(new AuthResponseDto(
+            authResult.UserId,
+            authResult.Email,
+            authResult.DisplayName,
+            accessToken,
+            refreshToken));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    public async Task<ActionResult<AuthResponseDto>> Refresh([FromBody] RefreshRequestDto request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return BadRequest("RefreshToken is required.");
+        }
+
+        var refreshResult = await _authService.RefreshAsync(request.RefreshToken, cancellationToken);
+        if (refreshResult is null)
+        {
+            return Unauthorized("Refresh token is invalid or revoked.");
+        }
+
+        var accessToken = _jwtTokenGenerator.GenerateToken(refreshResult.AuthResult);
+
+        return Ok(new AuthResponseDto(
+            refreshResult.AuthResult.UserId,
+            refreshResult.AuthResult.Email,
+            refreshResult.AuthResult.DisplayName,
+            accessToken,
+            refreshResult.RefreshToken));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout([FromBody] RefreshRequestDto request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return BadRequest("RefreshToken is required.");
+        }
+
+        await _authService.RevokeRefreshTokenAsync(request.RefreshToken, cancellationToken);
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpPost("logout-all")]
+    public async Task<IActionResult> LogoutAll(CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId))
+        {
+            return Unauthorized("Invalid token subject.");
+        }
+
+        await _authService.RevokeAllRefreshTokensAsync(userId, cancellationToken);
+        return NoContent();
     }
 
     [Authorize]

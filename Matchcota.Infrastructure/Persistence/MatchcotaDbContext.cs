@@ -6,11 +6,15 @@ namespace Matchcota.Infrastructure.Persistence;
 public sealed class MatchcotaDbContext(DbContextOptions<MatchcotaDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Dog> Dogs => Set<Dog>();
     public DbSet<DogMedia> DogMedia => Set<DogMedia>();
     public DbSet<Swipe> Swipes => Set<Swipe>();
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<MatchReadStatus> MatchReadStatuses => Set<MatchReadStatus>();
+    public DbSet<Block> Blocks => Set<Block>();
+    public DbSet<SafetyReport> SafetyReports => Set<SafetyReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +29,24 @@ public sealed class MatchcotaDbContext(DbContextOptions<MatchcotaDbContext> opti
             entity.Property(x => x.DisplayName).IsRequired().HasMaxLength(120);
             entity.Property(x => x.CreatedAtUtc).HasDefaultValueSql("timezone('utc', now())");
             entity.HasIndex(x => x.Email).IsUnique();
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshTokens");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.TokenHash).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.ExpiresAtUtc).IsRequired();
+            entity.Property(x => x.CreatedAtUtc).HasDefaultValueSql("timezone('utc', now())");
+            entity.Property(x => x.ReplacedByTokenHash).HasMaxLength(200);
+
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.UserId, x.RevokedAtUtc });
+
+            entity.HasOne(x => x.User)
+                .WithMany(x => x.RefreshTokens)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Dog>(entity =>
@@ -102,6 +124,56 @@ public sealed class MatchcotaDbContext(DbContextOptions<MatchcotaDbContext> opti
                 .WithMany()
                 .HasForeignKey(x => x.SenderDogId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MatchReadStatus>(entity =>
+        {
+            entity.ToTable("MatchReadStatuses");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.MatchId, x.UserId }).IsUnique();
+            entity.HasOne(x => x.Match)
+                .WithMany()
+                .HasForeignKey(x => x.MatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Block>(entity =>
+        {
+            entity.ToTable("Blocks");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CreatedAtUtc).HasDefaultValueSql("timezone('utc', now())");
+            entity.HasIndex(x => new { x.BlockerUserId, x.BlockedDogId }).IsUnique();
+            entity.HasOne(x => x.BlockerUser)
+                .WithMany()
+                .HasForeignKey(x => x.BlockerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.BlockedDog)
+                .WithMany()
+                .HasForeignKey(x => x.BlockedDogId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SafetyReport>(entity =>
+        {
+            entity.ToTable("SafetyReports");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Category).IsRequired().HasMaxLength(60);
+            entity.Property(x => x.Detail).HasMaxLength(1000);
+            entity.Property(x => x.CreatedAtUtc).HasDefaultValueSql("timezone('utc', now())");
+            entity.HasIndex(x => x.ReportedByUserId);
+            entity.HasIndex(x => x.ReportedDogId);
+            entity.HasOne(x => x.ReportedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.ReportedByUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ReportedDog)
+                .WithMany()
+                .HasForeignKey(x => x.ReportedDogId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

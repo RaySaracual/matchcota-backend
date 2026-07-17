@@ -118,6 +118,129 @@ public sealed class ChatService(MatchcotaDbContext dbContext) : IChatService
             message.SentAtUtc);
     }
 
+    public async Task<IReadOnlyList<ConversationResult>> GetConversationsAsync(
+        Guid userId,
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<Guid>? blockedDogIds = null)
+    {
+        var userDogIds = await _dbContext.Dogs
+            .AsNoTracking()
+            .Where(d => d.OwnerId == userId && d.IsActive)
+            .Select(d => d.Id)
+            .ToListAsync(cancellationToken);
+
+        if (userDogIds.Count == 0)
+            return Array.Empty<ConversationResult>();
+
+        var matches = await _dbContext.Matches
+            .AsNoTracking()
+            .Where(m => m.IsActive && (userDogIds.Contains(m.DogAId) || userDogIds.Contains(m.DogBId)))
+            .Select(m => new { m.Id, m.DogAId, m.DogBId })
+            .ToListAsync(cancellationToken);
+
+        if (matches.Count == 0)
+            return Array.Empty<ConversationResult>();
+
+        var matchIds = matches.Select(m => m.Id).ToList();
+
+        var matchMeta = matches.Select(m =>
+        {
+            var mine = userDogIds.Contains(m.DogAId) ? m.DogAId : m.DogBId;
+            var other = mine == m.DogAId ? m.DogBId : m.DogAId;
+            return (MatchId: m.Id, MyDogId: mine, OtherDogId: other);
+        }).ToList();
+
+        var otherDogIds = matchMeta.Select(x => x.OtherDogId).Distinct().ToList();
+
+        var otherDogs = await _dbContext.Dogs
+            .AsNoTracking()
+            .Where(d => otherDogIds.Contains(d.Id))
+            .Select(d => new
+            {
+                d.Id,
+                d.Name,
+                d.Breed,
+                PhotoUrl = d.Media
+                    .OrderBy(m => m.CreatedAtUtc)
+                    .Select(m => m.MediaUrl)
+                    .FirstOrDefault()
+            })
+            .ToListAsync(cancellationToken);
+
+        var dogMap = otherDogs.ToDictionary(d => d.Id);
+
+        // Load messages for all matches to compute last message and unread count.
+        // Acceptable at beta scale; add DB-side aggregation if needed later.
+        var allMessages = await _dbContext.Messages
+            .AsNoTracking()
+            .Where(m => matchIds.Contains(m.MatchId))
+            .Select(m => new { m.MatchId, m.SenderDogId, m.Content, m.SentAtUtc })
+            .ToListAsync(cancellationToken);
+
+        var readStatuses = await _dbContext.MatchReadStatuses
+            .AsNoTracking()
+            .Where(r => r.UserId == userId && matchIds.Contains(r.MatchId))
+            .ToDictionaryAsync(r => r.MatchId, r => r.LastReadAtUtc, cancellationToken);
+
+        var results = matchMeta
+            .Where(meta => blockedDogIds is null || !blockedDogIds.Contains(meta.OtherDogId))
+            .Select(meta =>
+        {
+            var msgs = allMessages.Where(m => m.MatchId == meta.MatchId).ToList();
+            var lastMsg = msgs.Count > 0 ? msgs.MaxBy(m => m.SentAtUtc) : null;
+            readStatuses.TryGetValue(meta.MatchId, out var lastReadAt);
+            var unread = msgs.Count(m => m.SenderDogId != meta.MyDogId && m.SentAtUtc > lastReadAt);
+
+            dogMap.TryGetValue(meta.OtherDogId, out var dog);
+
+            return new ConversationResult(
+                meta.MatchId,
+                meta.OtherDogId,
+                dog?.Name ?? string.Empty,
+                dog?.Breed ?? string.Empty,
+                dog?.PhotoUrl,
+                lastMsg?.Content,
+                lastMsg?.SentAtUtc,
+                meta.MyDogId,
+                unread);
+        })
+        .OrderByDescending(r => r.LastMessageSentAtUtc)
+        .ToList();
+
+        return results;
+    }
+
+    public async Task MarkAsReadAsync(
+        Guid userId,
+        Guid matchId,
+        CancellationToken cancellationToken)
+    {
+        var match = await GetAuthorizedMatchAsync(userId, matchId, cancellationToken);
+        if (match is null)
+            throw new UnauthorizedAccessException("The user cannot access this match chat.");
+
+        var existing = await _dbContext.MatchReadStatuses
+            .FirstOrDefaultAsync(r => r.UserId == userId && r.MatchId == matchId, cancellationToken);
+
+        var now = DateTime.UtcNow;
+        if (existing is null)
+        {
+            _dbContext.MatchReadStatuses.Add(new MatchReadStatus
+            {
+                Id = Guid.NewGuid(),
+                MatchId = matchId,
+                UserId = userId,
+                LastReadAtUtc = now,
+            });
+        }
+        else
+        {
+            existing.LastReadAtUtc = now;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<AuthorizedMatch?> GetAuthorizedMatchAsync(
         Guid userId,
         Guid matchId,

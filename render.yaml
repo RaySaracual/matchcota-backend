@@ -1,0 +1,36 @@
+databases:
+  - name: matchcota-db
+    databaseName: matchcota
+    user: matchcota
+    plan: free
+
+services:
+  - type: web
+    name: matchcota-api
+    env: docker
+    plan: free
+    dockerContext: .
+    dockerfilePath: ./Matchcota.Api/Dockerfile
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://0.0.0.0:8080
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: matchcota-db
+          property: connectionString
+      - key: Jwt__Key
+        generateValue: true
+      - key: Jwt__Issuer
+        value: Matchcota.Api
+      - key: Jwt__Audience
+        value: Matchcota.Client
+      - key: Jwt__ExpirationMinutes
+        value: "120"
+      - key: Cors__AllowedOrigins__0
+        sync: false
+      - key: Serilog__MinimumLevel__Default
+        value: Information

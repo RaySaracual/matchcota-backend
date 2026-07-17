@@ -10,12 +10,14 @@ public interface IDiscoveryService
         int page,
         int pageSize,
         double radiusKm,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<Guid>? blockedDogIds = null);
 
     Task<IReadOnlyList<DiscoveryMatch>> GetMatchesAsync(
         Guid dogId,
         Guid requestingUserId,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<Guid>? blockedDogIds = null);
 
     Task<bool> DogBelongsToUserAsync(
         Guid dogId,

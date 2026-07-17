@@ -24,7 +24,8 @@ public sealed class DiscoveryService(MatchcotaDbContext dbContext) : IDiscoveryS
         int page,
         int pageSize,
         double radiusKm,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<Guid>? blockedDogIds = null)
     {
         var sourceDog = await _dbContext.Dogs
             .AsNoTracking()
@@ -66,6 +67,7 @@ public sealed class DiscoveryService(MatchcotaDbContext dbContext) : IDiscoveryS
             .ToListAsync(cancellationToken);
 
         return pool
+            .Where(c => blockedDogIds is null || !blockedDogIds.Contains(c.Id))
             .Select(c => new
             {
                 c.Id,
@@ -94,7 +96,8 @@ public sealed class DiscoveryService(MatchcotaDbContext dbContext) : IDiscoveryS
     public async Task<IReadOnlyList<DiscoveryMatch>> GetMatchesAsync(
         Guid dogId,
         Guid requestingUserId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<Guid>? blockedDogIds = null)
     {
         var dogOwned = await DogBelongsToUserAsync(dogId, requestingUserId, cancellationToken);
         if (!dogOwned)
@@ -120,6 +123,7 @@ public sealed class DiscoveryService(MatchcotaDbContext dbContext) : IDiscoveryS
                     .FirstOrDefault();
                 return new DiscoveryMatch(m.Id, other.Id, other.Name, photo, m.MatchedAtUtc);
             })
+            .Where(m => blockedDogIds is null || !blockedDogIds.Contains(m.OtherDogId))
             .ToList();
     }
 

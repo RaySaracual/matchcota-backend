@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Matchcota.Api.Contracts.Discovery;
 using Matchcota.Services.Discovery;
+using Matchcota.Services.Safety;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,10 +12,12 @@ namespace Matchcota.Api.Controllers;
 [Authorize]
 public sealed class DiscoveryController(
     IDiscoveryService discoveryService,
-    ISwipeService swipeService) : ControllerBase
+    ISwipeService swipeService,
+    ISafetyService safetyService) : ControllerBase
 {
     private readonly IDiscoveryService _discoveryService = discoveryService;
     private readonly ISwipeService _swipeService = swipeService;
+    private readonly ISafetyService _safetyService = safetyService;
 
     /// <summary>
     /// Returns nearby dog candidates for discovery.
@@ -38,8 +41,10 @@ public sealed class DiscoveryController(
             return Unauthorized();
         }
 
+        var blockedDogIds = await _safetyService.GetBlockedDogIdsAsync(userId, cancellationToken);
+
         var candidates = await _discoveryService.GetCandidatesAsync(
-            sourceDogId, userId, page, pageSize, radiusKm, cancellationToken);
+            sourceDogId, userId, page, pageSize, radiusKm, cancellationToken, blockedDogIds);
 
         var items = candidates
             .Select(c => new CandidateDto(c.DogId, c.Name, c.Breed, c.AgeMonths, c.Bio, c.PhotoUrl, c.DistanceKm))
@@ -98,7 +103,8 @@ public sealed class DiscoveryController(
             return Unauthorized();
         }
 
-        var matches = await _discoveryService.GetMatchesAsync(dogId, userId, cancellationToken);
+        var blockedDogIds = await _safetyService.GetBlockedDogIdsAsync(userId, cancellationToken);
+        var matches = await _discoveryService.GetMatchesAsync(dogId, userId, cancellationToken, blockedDogIds);
         var dtos = matches
             .Select(m => new MatchDto(m.MatchId, m.OtherDogId, m.OtherDogName, m.OtherDogPhotoUrl, m.MatchedAtUtc))
             .ToList();

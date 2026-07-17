@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using Matchcota.Api.Contracts.Chat;
 using Matchcota.Services.Chat;
+using Matchcota.Services.Safety;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,9 +11,55 @@ namespace Matchcota.Api.Controllers;
 [ApiController]
 [Route("api/v1/chat")]
 [Authorize]
-public sealed class ChatController(IChatService chatService) : ControllerBase
+public sealed class ChatController(IChatService chatService, ISafetyService safetyService) : ControllerBase
 {
     private readonly IChatService _chatService = chatService;
+    private readonly ISafetyService _safetyService = safetyService;
+
+    [HttpGet("conversations")]
+    public async Task<ActionResult<IReadOnlyList<ConversationDto>>> GetConversations(
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        if (userId == Guid.Empty)
+            return Unauthorized();
+
+        var blockedDogIds = await _safetyService.GetBlockedDogIdsAsync(userId, cancellationToken);
+        var conversations = await _chatService.GetConversationsAsync(userId, cancellationToken, blockedDogIds);
+
+        var dtos = conversations.Select(c => new ConversationDto(
+            c.MatchId,
+            c.OtherDogId,
+            c.OtherDogName,
+            c.OtherDogBreed,
+            c.OtherDogPhotoUrl,
+            c.LastMessageContent,
+            c.LastMessageSentAtUtc,
+            c.MyDogId,
+            c.UnreadCount)).ToList();
+
+        return Ok(dtos);
+    }
+
+    [HttpPost("{matchId:guid}/read")]
+    public async Task<IActionResult> MarkAsRead(
+        Guid matchId,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        if (userId == Guid.Empty)
+            return Unauthorized();
+
+        try
+        {
+            await _chatService.MarkAsReadAsync(userId, matchId, cancellationToken);
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
 
     [HttpGet("{matchId:guid}/messages")]
     public async Task<ActionResult<ChatMessagesPageDto>> GetMessages(

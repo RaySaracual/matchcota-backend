@@ -2,6 +2,7 @@ using Matchcota.Services.Auth;
 using Matchcota.Services.Chat;
 using Matchcota.Services.Discovery;
 using Matchcota.Services.Dogs;
+using Matchcota.Services.Safety;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Matchcota.Services;
@@ -15,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<IDiscoveryService, DiscoveryService>();
         services.AddScoped<ISwipeService, SwipeService>();
         services.AddScoped<IDogsService, DogsService>();
+        services.AddScoped<ISafetyService, SafetyService>();
         return services;
     }
 }

@@ -6,6 +6,16 @@ public interface IChatService
 {
     Task EnsureUserBelongsToMatchAsync(Guid userId, Guid matchId, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ConversationResult>> GetConversationsAsync(
+        Guid userId,
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<Guid>? blockedDogIds = null);
+
+    Task MarkAsReadAsync(
+        Guid userId,
+        Guid matchId,
+        CancellationToken cancellationToken);
+
     Task<PagedMessagesResult> GetMessagesAsync(
         Guid userId,
         Guid matchId,

@@ -9,4 +9,5 @@ public sealed class User
     public DateTime CreatedAtUtc { get; set; }
 
     public ICollection<Dog> Dogs { get; set; } = new List<Dog>();
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }
