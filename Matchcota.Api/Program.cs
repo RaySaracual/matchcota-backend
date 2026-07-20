@@ -117,6 +117,7 @@ using (var scope = app.Services.CreateScope())
             var db = scope.ServiceProvider.GetRequiredService<MatchcotaDbContext>();
             await db.Database.MigrateAsync();
             await EnsureRefreshTokensTableAsync(db, logger);
+            await EnsureSafetyTablesAsync(db, logger);
             logger.LogInformation("Database migrations applied successfully.");
             break;
         }
@@ -243,4 +244,88 @@ static async Task EnsureRefreshTokensTableAsync(MatchcotaDbContext db, Microsoft
 
     await db.Database.ExecuteSqlRawAsync(sql);
     logger.LogInformation("Verified RefreshTokens table and indexes.");
+}
+
+static async Task EnsureSafetyTablesAsync(MatchcotaDbContext db, Microsoft.Extensions.Logging.ILogger logger)
+{
+    const string sql = """
+    CREATE TABLE IF NOT EXISTS "Blocks" (
+        "Id" uuid NOT NULL,
+        "BlockerUserId" uuid NOT NULL,
+        "BlockedDogId" uuid NOT NULL,
+        "CreatedAtUtc" timestamp with time zone NOT NULL DEFAULT timezone('utc', now()),
+        CONSTRAINT "PK_Blocks" PRIMARY KEY ("Id")
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS "IX_Blocks_BlockerUserId_BlockedDogId"
+        ON "Blocks" ("BlockerUserId", "BlockedDogId");
+
+    CREATE INDEX IF NOT EXISTS "IX_Blocks_BlockedDogId"
+        ON "Blocks" ("BlockedDogId");
+
+    CREATE TABLE IF NOT EXISTS "SafetyReports" (
+        "Id" uuid NOT NULL,
+        "ReportedByUserId" uuid NOT NULL,
+        "ReportedDogId" uuid NOT NULL,
+        "Category" character varying(60) NOT NULL,
+        "Detail" character varying(1000) NULL,
+        "CreatedAtUtc" timestamp with time zone NOT NULL DEFAULT timezone('utc', now()),
+        CONSTRAINT "PK_SafetyReports" PRIMARY KEY ("Id")
+    );
+
+    CREATE INDEX IF NOT EXISTS "IX_SafetyReports_ReportedByUserId"
+        ON "SafetyReports" ("ReportedByUserId");
+
+    CREATE INDEX IF NOT EXISTS "IX_SafetyReports_ReportedDogId"
+        ON "SafetyReports" ("ReportedDogId");
+
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name IN ('Users', 'users')
+        ) THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'FK_Blocks_Users_BlockerUserId'
+            ) THEN
+                ALTER TABLE "Blocks"
+                    ADD CONSTRAINT "FK_Blocks_Users_BlockerUserId"
+                    FOREIGN KEY ("BlockerUserId") REFERENCES "Users" ("Id") ON DELETE CASCADE;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'FK_SafetyReports_Users_ReportedByUserId'
+            ) THEN
+                ALTER TABLE "SafetyReports"
+                    ADD CONSTRAINT "FK_SafetyReports_Users_ReportedByUserId"
+                    FOREIGN KEY ("ReportedByUserId") REFERENCES "Users" ("Id") ON DELETE CASCADE;
+            END IF;
+        END IF;
+
+        IF EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name IN ('Dogs', 'dogs')
+        ) THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'FK_Blocks_Dogs_BlockedDogId'
+            ) THEN
+                ALTER TABLE "Blocks"
+                    ADD CONSTRAINT "FK_Blocks_Dogs_BlockedDogId"
+                    FOREIGN KEY ("BlockedDogId") REFERENCES "Dogs" ("Id") ON DELETE CASCADE;
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'FK_SafetyReports_Dogs_ReportedDogId'
+            ) THEN
+                ALTER TABLE "SafetyReports"
+                    ADD CONSTRAINT "FK_SafetyReports_Dogs_ReportedDogId"
+                    FOREIGN KEY ("ReportedDogId") REFERENCES "Dogs" ("Id") ON DELETE CASCADE;
+            END IF;
+        END IF;
+    END
+    $$;
+    """;
+
+    await db.Database.ExecuteSqlRawAsync(sql);
+    logger.LogInformation("Verified Safety tables and indexes.");
 }
