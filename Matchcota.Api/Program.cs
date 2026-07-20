@@ -210,8 +210,7 @@ static async Task EnsureRefreshTokensTableAsync(MatchcotaDbContext db, Microsoft
         \"CreatedAtUtc\" timestamp with time zone NOT NULL DEFAULT timezone('utc', now()),
         \"RevokedAtUtc\" timestamp with time zone NULL,
         \"ReplacedByTokenHash\" character varying(200) NULL,
-        CONSTRAINT \"PK_RefreshTokens\" PRIMARY KEY (\"Id\"),
-        CONSTRAINT \"FK_RefreshTokens_Users_UserId\" FOREIGN KEY (\"UserId\") REFERENCES \"Users\" (\"Id\") ON DELETE CASCADE
+        CONSTRAINT \"PK_RefreshTokens\" PRIMARY KEY (\"Id\")
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS \"IX_RefreshTokens_TokenHash\"
@@ -219,6 +218,27 @@ static async Task EnsureRefreshTokensTableAsync(MatchcotaDbContext db, Microsoft
 
     CREATE INDEX IF NOT EXISTS \"IX_RefreshTokens_UserId_RevokedAtUtc\"
         ON \"RefreshTokens\" (\"UserId\", \"RevokedAtUtc\");
+
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name IN ('Users', 'users')
+        ) THEN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'FK_RefreshTokens_Users_UserId'
+            ) THEN
+                ALTER TABLE \"RefreshTokens\"
+                    ADD CONSTRAINT \"FK_RefreshTokens_Users_UserId\"
+                    FOREIGN KEY (\"UserId\") REFERENCES \"Users\" (\"Id\") ON DELETE CASCADE;
+            END IF;
+        END IF;
+    END
+    $$;
     """;
 
     await db.Database.ExecuteSqlRawAsync(sql);
