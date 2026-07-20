@@ -19,9 +19,7 @@ services:
       - key: ASPNETCORE_URLS
         value: http://0.0.0.0:8080
       - key: ConnectionStrings__DefaultConnection
-        fromDatabase:
-          name: matchcota-db
-          property: connectionString
+        sync: false
       - key: Jwt__Key
         generateValue: true
       - key: Jwt__Issuer
