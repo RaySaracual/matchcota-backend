@@ -116,6 +116,7 @@ using (var scope = app.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<MatchcotaDbContext>();
             await db.Database.MigrateAsync();
+            await EnsureRefreshTokensTableAsync(db, logger);
             logger.LogInformation("Database migrations applied successfully.");
             break;
         }
@@ -135,7 +136,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-else
+else if (ShouldUseHttpsRedirection(app.Configuration))
 {
     app.UseHttpsRedirection();
 }
@@ -186,3 +187,40 @@ app.MapHealthChecks("/healthz", new HealthCheckOptions
 });
 
 app.Run();
+
+static bool ShouldUseHttpsRedirection(IConfiguration configuration)
+{
+    var urls = configuration["ASPNETCORE_URLS"];
+    if (string.IsNullOrWhiteSpace(urls))
+    {
+        return true;
+    }
+
+    return urls.Contains("https://", StringComparison.OrdinalIgnoreCase);
+}
+
+static async Task EnsureRefreshTokensTableAsync(MatchcotaDbContext db, Microsoft.Extensions.Logging.ILogger logger)
+{
+    const string sql = """
+    CREATE TABLE IF NOT EXISTS \"RefreshTokens\" (
+        \"Id\" uuid NOT NULL,
+        \"UserId\" uuid NOT NULL,
+        \"TokenHash\" character varying(200) NOT NULL,
+        \"ExpiresAtUtc\" timestamp with time zone NOT NULL,
+        \"CreatedAtUtc\" timestamp with time zone NOT NULL DEFAULT timezone('utc', now()),
+        \"RevokedAtUtc\" timestamp with time zone NULL,
+        \"ReplacedByTokenHash\" character varying(200) NULL,
+        CONSTRAINT \"PK_RefreshTokens\" PRIMARY KEY (\"Id\"),
+        CONSTRAINT \"FK_RefreshTokens_Users_UserId\" FOREIGN KEY (\"UserId\") REFERENCES \"Users\" (\"Id\") ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS \"IX_RefreshTokens_TokenHash\"
+        ON \"RefreshTokens\" (\"TokenHash\");
+
+    CREATE INDEX IF NOT EXISTS \"IX_RefreshTokens_UserId_RevokedAtUtc\"
+        ON \"RefreshTokens\" (\"UserId\", \"RevokedAtUtc\");
+    """;
+
+    await db.Database.ExecuteSqlRawAsync(sql);
+    logger.LogInformation("Verified RefreshTokens table and indexes.");
+}
