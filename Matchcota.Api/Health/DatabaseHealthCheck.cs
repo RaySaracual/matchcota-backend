@@ -11,9 +11,18 @@ public sealed class DatabaseHealthCheck(MatchcotaDbContext dbContext) : IHealthC
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        var canConnect = await _dbContext.Database.CanConnectAsync(cancellationToken);
-        return canConnect
-            ? HealthCheckResult.Healthy("Database is reachable.")
-            : HealthCheckResult.Unhealthy("Database is not reachable.");
+        try
+        {
+            var canConnect = await _dbContext.Database.CanConnectAsync(cancellationToken);
+            return canConnect
+                ? HealthCheckResult.Healthy("Database is reachable.")
+                : HealthCheckResult.Unhealthy("Database is not reachable.");
+        }
+        catch (Exception ex)
+        {
+            return HealthCheckResult.Unhealthy(
+                description: $"Database check threw: {ex.GetType().Name}: {ex.Message}",
+                exception: ex);
+        }
     }
 }

@@ -5,13 +5,18 @@ using Matchcota.Api.Hubs;
 using Matchcota.Api.Middleware;
 using Matchcota.Api.Storage;
 using Matchcota.Infrastructure;
+using Matchcota.Infrastructure.Persistence;
 using Matchcota.Services.Dogs;
 using Matchcota.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Formatting.Compact;
+using System.Net.Mime;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "FrontendCors";
@@ -100,6 +105,30 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Run pending migrations on startup (with retry for cloud environments where DB may not be ready)
+using (var scope = app.Services.CreateScope())
+{
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var retries = 5;
+    while (retries > 0)
+    {
+        try
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MatchcotaDbContext>();
+            await db.Database.MigrateAsync();
+            logger.LogInformation("Database migrations applied successfully.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            retries--;
+            logger.LogError(ex, "Failed to apply migrations. Retries left: {Retries}", retries);
+            if (retries == 0) throw;
+            await Task.Delay(TimeSpan.FromSeconds(5));
+        }
+    }
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -132,6 +161,28 @@ app.MapHub<ChatHub>("/hubs/chat");
 app.MapHealthChecks("/healthz", new HealthCheckOptions
 {
     Predicate = _ => true,
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status200OK,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+    },
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = MediaTypeNames.Application.Json;
+        var result = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                error = e.Value.Exception?.Message,
+            })
+        });
+        await context.Response.WriteAsync(result);
+    }
 });
 
 app.Run();
