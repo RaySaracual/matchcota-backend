@@ -202,22 +202,22 @@ static bool ShouldUseHttpsRedirection(IConfiguration configuration)
 static async Task EnsureRefreshTokensTableAsync(MatchcotaDbContext db, Microsoft.Extensions.Logging.ILogger logger)
 {
     const string sql = """
-    CREATE TABLE IF NOT EXISTS \"RefreshTokens\" (
-        \"Id\" uuid NOT NULL,
-        \"UserId\" uuid NOT NULL,
-        \"TokenHash\" character varying(200) NOT NULL,
-        \"ExpiresAtUtc\" timestamp with time zone NOT NULL,
-        \"CreatedAtUtc\" timestamp with time zone NOT NULL DEFAULT timezone('utc', now()),
-        \"RevokedAtUtc\" timestamp with time zone NULL,
-        \"ReplacedByTokenHash\" character varying(200) NULL,
-        CONSTRAINT \"PK_RefreshTokens\" PRIMARY KEY (\"Id\")
+    CREATE TABLE IF NOT EXISTS "RefreshTokens" (
+        "Id" uuid NOT NULL,
+        "UserId" uuid NOT NULL,
+        "TokenHash" character varying(200) NOT NULL,
+        "ExpiresAtUtc" timestamp with time zone NOT NULL,
+        "CreatedAtUtc" timestamp with time zone NOT NULL DEFAULT timezone('utc', now()),
+        "RevokedAtUtc" timestamp with time zone NULL,
+        "ReplacedByTokenHash" character varying(200) NULL,
+        CONSTRAINT "PK_RefreshTokens" PRIMARY KEY ("Id")
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS \"IX_RefreshTokens_TokenHash\"
-        ON \"RefreshTokens\" (\"TokenHash\");
+    CREATE UNIQUE INDEX IF NOT EXISTS "IX_RefreshTokens_TokenHash"
+        ON "RefreshTokens" ("TokenHash");
 
-    CREATE INDEX IF NOT EXISTS \"IX_RefreshTokens_UserId_RevokedAtUtc\"
-        ON \"RefreshTokens\" (\"UserId\", \"RevokedAtUtc\");
+    CREATE INDEX IF NOT EXISTS "IX_RefreshTokens_UserId_RevokedAtUtc"
+        ON "RefreshTokens" ("UserId", "RevokedAtUtc");
 
     DO $$
     BEGIN
@@ -232,9 +232,9 @@ static async Task EnsureRefreshTokensTableAsync(MatchcotaDbContext db, Microsoft
                 FROM pg_constraint
                 WHERE conname = 'FK_RefreshTokens_Users_UserId'
             ) THEN
-                ALTER TABLE \"RefreshTokens\"
-                    ADD CONSTRAINT \"FK_RefreshTokens_Users_UserId\"
-                    FOREIGN KEY (\"UserId\") REFERENCES \"Users\" (\"Id\") ON DELETE CASCADE;
+                ALTER TABLE "RefreshTokens"
+                    ADD CONSTRAINT "FK_RefreshTokens_Users_UserId"
+                    FOREIGN KEY ("UserId") REFERENCES "Users" ("Id") ON DELETE CASCADE;
             END IF;
         END IF;
     END
