@@ -34,3 +34,9 @@ services:
         sync: false
       - key: Serilog__MinimumLevel__Default
         value: Information
+      # Disable config file watching to avoid exhausting the inotify limit on shared Linux hosts
+      - key: DOTNET_hostBuilder__reloadConfigOnChange
+        value: "false"
+      # Fallback: if any watcher is still created, use polling instead of inotify
+      - key: DOTNET_USE_POLLING_FILE_WATCHER
+        value: "1"
