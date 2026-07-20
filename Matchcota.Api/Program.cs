@@ -117,6 +117,7 @@ using (var scope = app.Services.CreateScope())
             var db = scope.ServiceProvider.GetRequiredService<MatchcotaDbContext>();
             await db.Database.MigrateAsync();
             await EnsureRefreshTokensTableAsync(db, logger);
+            await EnsureMatchReadStatusesTableAsync(db, logger);
             await EnsureSafetyTablesAsync(db, logger);
             logger.LogInformation("Database migrations applied successfully.");
             break;
@@ -328,4 +329,53 @@ static async Task EnsureSafetyTablesAsync(MatchcotaDbContext db, Microsoft.Exten
 
     await db.Database.ExecuteSqlRawAsync(sql);
     logger.LogInformation("Verified Safety tables and indexes.");
+}
+
+static async Task EnsureMatchReadStatusesTableAsync(MatchcotaDbContext db, Microsoft.Extensions.Logging.ILogger logger)
+{
+    const string sql = """
+    CREATE TABLE IF NOT EXISTS "MatchReadStatuses" (
+        "Id" uuid NOT NULL,
+        "MatchId" uuid NOT NULL,
+        "UserId" uuid NOT NULL,
+        "LastReadAtUtc" timestamp with time zone NOT NULL,
+        CONSTRAINT "PK_MatchReadStatuses" PRIMARY KEY ("Id")
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS "IX_MatchReadStatuses_MatchId_UserId"
+        ON "MatchReadStatuses" ("MatchId", "UserId");
+
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name IN ('Matches', 'matches')
+        ) THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'FK_MatchReadStatuses_Matches_MatchId'
+            ) THEN
+                ALTER TABLE "MatchReadStatuses"
+                    ADD CONSTRAINT "FK_MatchReadStatuses_Matches_MatchId"
+                    FOREIGN KEY ("MatchId") REFERENCES "Matches" ("Id") ON DELETE CASCADE;
+            END IF;
+        END IF;
+
+        IF EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name IN ('Users', 'users')
+        ) THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'FK_MatchReadStatuses_Users_UserId'
+            ) THEN
+                ALTER TABLE "MatchReadStatuses"
+                    ADD CONSTRAINT "FK_MatchReadStatuses_Users_UserId"
+                    FOREIGN KEY ("UserId") REFERENCES "Users" ("Id") ON DELETE CASCADE;
+            END IF;
+        END IF;
+    END
+    $$;
+    """;
+
+    await db.Database.ExecuteSqlRawAsync(sql);
+    logger.LogInformation("Verified MatchReadStatuses table and indexes.");
 }
